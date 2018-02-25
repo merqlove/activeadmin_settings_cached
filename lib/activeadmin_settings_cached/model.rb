@@ -1,8 +1,18 @@
 # frozen_string_literal: true
 
 module ActiveadminSettingsCached
+  module ModelHelpers
+    TIME_FORMAT = '%Y-%m-%d %H:%M'
+
+    def time_value(value)
+      return value unless value.is_a?(Time)
+      value&.strftime(TIME_FORMAT)
+    end
+  end
+
   class Model
     include ::ActiveModel::Model
+    include ModelHelpers
 
     attr_reader :attributes
 
@@ -26,6 +36,10 @@ module ActiveadminSettingsCached
                        collection: default_value,
                        selected: value,
                      }
+                   elsif default_value.is_a?(Time)
+                     {
+                         input_html: { value: time_value(value), placeholder: time_value(default_value) }
+                     }
                    elsif (default_value.is_a?(TrueClass) || default_value.is_a?(FalseClass)) &&
                          display[settings_name].to_s == 'boolean'
                      {
@@ -37,8 +51,8 @@ module ActiveadminSettingsCached
                      }
                    end
 
-      { as: display[settings_name], label: false }
-        .merge!(input_opts)
+      display_options(settings_name, { label: false })
+          .merge!(input_opts)
     end
 
     def settings
@@ -87,6 +101,18 @@ module ActiveadminSettingsCached
     alias_method :to_hash, :attributes
 
     protected
+
+    def display_options(settings_name, opts)
+      return opts unless display[settings_name]
+
+      if display[settings_name].is_a?(Hash)
+        opts.merge!(display[settings_name].symbolize_keys)
+      else
+        opts[:as] = display[settings_name]
+      end
+
+      opts
+    end
 
     def load_settings
       settings_model.public_send(meth, attributes[:starting_with])
